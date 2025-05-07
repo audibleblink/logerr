@@ -24,10 +24,10 @@ const (
 
 // String labels for each log level
 var labels = map[LogLevel]string{
-	LogLevelDebug: "DEBUG",
-	LogLevelInfo:  "INFO",
-	LogLevelWarn:  "WARN",
-	LogLevelError: "ERROR",
+	LogLevelDebug: "DBG",
+	LogLevelInfo:  "INF",
+	LogLevelWarn:  "WRN",
+	LogLevelError: "ERR",
 	LogLevelFatal: "FATAL",
 }
 
@@ -132,7 +132,7 @@ func (l Logger) Wrap(val any) error {
 	default:
 		err = fmt.Errorf("%v", v)
 	}
-	
+
 	if l.LogWrappedErrors {
 		l.Error(err)
 	}
@@ -169,10 +169,28 @@ func messageToString(message any) string {
 }
 
 // log outputs a message if it should be logged based on level
-// message can be a string or an error
-func (l *Logger) log(level LogLevel, message any) {
+// first argument can be a string or an error, any additional arguments are appended
+func (l *Logger) log(level LogLevel, args ...any) {
 	if l.shouldLog(level) {
-		msgStr := messageToString(message)
+		if len(args) == 0 {
+			// No arguments provided
+			return
+		}
+
+		// Format the message based on the number of arguments
+		var msgStr string
+		if len(args) == 1 {
+			// Single argument case (backwards compatibility)
+			msgStr = messageToString(args[0])
+		} else {
+			// Multiple arguments case
+			msgParts := make([]string, len(args))
+			for i, arg := range args {
+				msgParts[i] = messageToString(arg)
+			}
+			msgStr = strings.Join(msgParts, " ")
+		}
+
 		formatted := l.formatLogMessage(level, msgStr)
 		fmt.Fprintln(l.Output, formatted)
 	}
@@ -186,9 +204,9 @@ func (l *Logger) logf(level LogLevel, format string, args ...any) {
 }
 
 // Debug logs a message at DEBUG level
-// message can be a string or an error
-func (l Logger) Debug(message any) {
-	l.log(LogLevelDebug, message)
+// First argument can be a string or an error, any additional arguments are appended
+func (l Logger) Debug(args ...any) {
+	l.log(LogLevelDebug, args...)
 }
 
 // Debugf logs a formatted message at DEBUG level
@@ -197,9 +215,9 @@ func (l Logger) Debugf(format string, args ...any) {
 }
 
 // Info logs a message at INFO level
-// message can be a string or an error
-func (l Logger) Info(message any) {
-	l.log(LogLevelInfo, message)
+// First argument can be a string or an error, any additional arguments are appended
+func (l Logger) Info(args ...any) {
+	l.log(LogLevelInfo, args...)
 }
 
 // Infof logs a formatted message at INFO level
@@ -208,9 +226,9 @@ func (l Logger) Infof(format string, args ...any) {
 }
 
 // Warn logs a message at WARN level
-// message can be a string or an error
-func (l Logger) Warn(message any) {
-	l.log(LogLevelWarn, message)
+// First argument can be a string or an error, any additional arguments are appended
+func (l Logger) Warn(args ...any) {
+	l.log(LogLevelWarn, args...)
 }
 
 // Warnf logs a formatted message at WARN level
@@ -219,9 +237,9 @@ func (l Logger) Warnf(format string, args ...any) {
 }
 
 // Error logs a message at ERROR level
-// message can be a string or an error
-func (l Logger) Error(message any) {
-	l.log(LogLevelError, message)
+// First argument can be a string or an error, any additional arguments are appended
+func (l Logger) Error(args ...any) {
+	l.log(LogLevelError, args...)
 }
 
 // Errorf logs a formatted message at ERROR level
@@ -230,9 +248,9 @@ func (l Logger) Errorf(format string, args ...any) {
 }
 
 // Fatal logs a message at FATAL level and exits the program
-// message can be a string or an error
-func (l Logger) Fatal(message any) {
-	l.log(LogLevelFatal, message)
+// First argument can be a string or an error, any additional arguments are appended
+func (l Logger) Fatal(args ...any) {
+	l.log(LogLevelFatal, args...)
 	os.Exit(1)
 }
 
@@ -256,36 +274,36 @@ func formatLabel(level LogLevel, noColor bool) string {
 // Global convenience functions that use the default logger
 
 // Debug logs a message at DEBUG level using the global logger
-// message can be a string or an error
-func Debug(message any) { G.Debug(message) }
+// First argument can be a string or an error, any additional arguments are appended
+func Debug(args ...any) { G.Debug(args...) }
 
 // Debugf logs a formatted message at DEBUG level using the global logger
 func Debugf(format string, vals ...any) { G.Debugf(format, vals...) }
 
 // Info logs a message at INFO level using the global logger
-// message can be a string or an error
-func Info(message any) { G.Info(message) }
+// First argument can be a string or an error, any additional arguments are appended
+func Info(args ...any) { G.Info(args...) }
 
 // Infof logs a formatted message at INFO level using the global logger
 func Infof(format string, vals ...any) { G.Infof(format, vals...) }
 
 // Warn logs a message at WARN level using the global logger
-// message can be a string or an error
-func Warn(message any) { G.Warn(message) }
+// First argument can be a string or an error, any additional arguments are appended
+func Warn(args ...any) { G.Warn(args...) }
 
 // Warnf logs a formatted message at WARN level using the global logger
 func Warnf(format string, vals ...any) { G.Warnf(format, vals...) }
 
 // Error logs a message at ERROR level using the global logger
-// message can be a string or an error
-func Error(message any) { G.Error(message) }
+// First argument can be a string or an error, any additional arguments are appended
+func Error(args ...any) { G.Error(args...) }
 
 // Errorf logs a formatted message at ERROR level using the global logger
 func Errorf(format string, vals ...any) { G.Errorf(format, vals...) }
 
 // Fatal logs a message at FATAL level and exits the program using the global logger
-// message can be a string or an error
-func Fatal(message any) { G.Fatal(message) }
+// First argument can be a string or an error, any additional arguments are appended
+func Fatal(args ...any) { G.Fatal(args...) }
 
 // Fatalf logs a formatted message at FATAL level and exits the program using the global logger
 func Fatalf(format string, vals ...any) { G.Fatalf(format, vals...) }

@@ -27,10 +27,10 @@ func TestLogLevels(t *testing.T) {
 
 	// Test that log level labels are defined correctly
 	expectedLabels := map[LogLevel]string{
-		LogLevelDebug: "DEBUG",
-		LogLevelInfo:  "INFO",
-		LogLevelWarn:  "WARN",
-		LogLevelError: "ERROR",
+		LogLevelDebug: "DBG",
+		LogLevelInfo:  "INF",
+		LogLevelWarn:  "WRN",
+		LogLevelError: "ERR",
 		LogLevelFatal: "FATAL",
 	}
 
@@ -80,16 +80,16 @@ func TestLogMessages(t *testing.T) {
 	logger.Level = LogLevelDebug // Make sure all messages are logged
 	logger.NoColor = true        // Disable colors for testing
 
-	// Test basic logging methods with string
+	// Test basic logging methods with string (single argument - backward compatibility)
 	tests := []struct {
-		logFunc   func(any)
+		logFunc   func(...any)
 		message   any
 		levelText string
 	}{
-		{logger.Debug, "debug test", "[DEBUG]"},
-		{logger.Info, "info test", "[INFO]"},
-		{logger.Warn, "warn test", "[WARN]"},
-		{logger.Error, "error test", "[ERROR]"},
+		{logger.Debug, "debug test", "[DBG]"},
+		{logger.Info, "info test", "[INF]"},
+		{logger.Warn, "warn test", "[WRN]"},
+		{logger.Error, "error test", "[ERR]"},
 	}
 
 	for _, test := range tests {
@@ -106,16 +106,16 @@ func TestLogMessages(t *testing.T) {
 		}
 	}
 
-	// Test basic logging methods with error
+	// Test basic logging methods with error (single argument - backward compatibility)
 	errorTests := []struct {
-		logFunc   func(any)
+		logFunc   func(...any)
 		message   any
 		levelText string
 	}{
-		{logger.Debug, errors.New("debug error"), "[DEBUG]"},
-		{logger.Info, errors.New("info error"), "[INFO]"},
-		{logger.Warn, errors.New("warn error"), "[WARN]"},
-		{logger.Error, errors.New("error error"), "[ERROR]"},
+		{logger.Debug, errors.New("debug error"), "[DBG]"},
+		{logger.Info, errors.New("info error"), "[INF]"},
+		{logger.Warn, errors.New("warn error"), "[WRN]"},
+		{logger.Error, errors.New("error error"), "[ERR]"},
 	}
 
 	for _, test := range errorTests {
@@ -132,6 +132,37 @@ func TestLogMessages(t *testing.T) {
 		}
 	}
 
+	// Test the new variadic functionality
+	variadicTests := []struct {
+		logFunc   func(...any)
+		args      []any
+		levelText string
+		expected  []string
+	}{
+		{logger.Debug, []any{"User logged in", errors.New("with admin rights")}, "[DBG]", []string{"User logged in", "with admin rights"}},
+		{logger.Info, []any{"Operation completed", 42, "items processed"}, "[INF]", []string{"Operation completed", "42", "items processed"}},
+		{logger.Warn, []any{"Missing configuration", errors.New("defaulting to standard settings")}, "[WRN]", []string{"Missing configuration", "defaulting to standard settings"}},
+		{logger.Error, []any{"Failed to connect", errors.New("connection timeout")}, "[ERR]", []string{"Failed to connect", "connection timeout"}},
+	}
+
+	for _, test := range variadicTests {
+		buf.Reset()
+		test.logFunc(test.args...)
+		output := buf.String()
+
+		if !strings.Contains(output, test.levelText) {
+			t.Errorf("Expected variadic message to contain level '%s', got: %s",
+				test.levelText, output)
+		}
+
+		for _, expectedStr := range test.expected {
+			if !strings.Contains(output, expectedStr) {
+				t.Errorf("Expected variadic message to contain '%s', got: %s",
+					expectedStr, output)
+			}
+		}
+	}
+
 	// Test formatted logging methods
 	formatTests := []struct {
 		logFunc   func(string, ...any)
@@ -140,10 +171,10 @@ func TestLogMessages(t *testing.T) {
 		levelText string
 		expected  string
 	}{
-		{logger.Debugf, "debug %s", []any{"formatted"}, "[DEBUG]", "debug formatted"},
-		{logger.Infof, "info %s", []any{"formatted"}, "[INFO]", "info formatted"},
-		{logger.Warnf, "warn %s", []any{"formatted"}, "[WARN]", "warn formatted"},
-		{logger.Errorf, "error %s", []any{"formatted"}, "[ERROR]", "error formatted"},
+		{logger.Debugf, "debug %s", []any{"formatted"}, "[DBG]", "debug formatted"},
+		{logger.Infof, "info %s", []any{"formatted"}, "[INF]", "info formatted"},
+		{logger.Warnf, "warn %s", []any{"formatted"}, "[WRN]", "warn formatted"},
+		{logger.Errorf, "error %s", []any{"formatted"}, "[ERR]", "error formatted"},
 	}
 
 	for _, test := range formatTests {
@@ -155,29 +186,29 @@ func TestLogMessages(t *testing.T) {
 				test.levelText, test.expected, output)
 		}
 	}
-	
+
 	// Test formatted logging with error arguments
 	err := errors.New("formatted error")
-	
+
 	// Test each formatted log function with error argument
 	buf.Reset()
 	logger.Debugf("Got error: %v", err)
 	if !strings.Contains(buf.String(), "Got error: formatted error") {
 		t.Errorf("Expected Debugf with error to contain error message, got: %s", buf.String())
 	}
-	
+
 	buf.Reset()
 	logger.Infof("Error occurred: %s", err)
 	if !strings.Contains(buf.String(), "Error occurred: formatted error") {
 		t.Errorf("Expected Infof with error to contain error message, got: %s", buf.String())
 	}
-	
+
 	buf.Reset()
 	logger.Warnf("Warning with error: %s", err)
 	if !strings.Contains(buf.String(), "Warning with error: formatted error") {
 		t.Errorf("Expected Warnf with error to contain error message, got: %s", buf.String())
 	}
-	
+
 	buf.Reset()
 	logger.Errorf("Error details: %s", err)
 	if !strings.Contains(buf.String(), "Error details: formatted error") {
@@ -208,16 +239,16 @@ func TestLogLevelFiltering(t *testing.T) {
 
 	output := buf.String()
 	if strings.Contains(output, "debug test") {
-		t.Errorf("DEBUG level message should be filtered when Level is WARN, got: %s", output)
+		t.Errorf("DBG level message should be filtered when Level is WRN, got: %s", output)
 	}
 	if strings.Contains(output, "info test") {
-		t.Errorf("INFO level message should be filtered when Level is WARN, got: %s", output)
+		t.Errorf("INF level message should be filtered when Level is WRN, got: %s", output)
 	}
 	if !strings.Contains(output, "warn test") {
-		t.Errorf("WARN level message should be logged when Level is WARN, got: %s", output)
+		t.Errorf("WRN level message should be logged when Level is WRN, got: %s", output)
 	}
 	if !strings.Contains(output, "error test") {
-		t.Errorf("ERROR level message should be logged when Level is WARN, got: %s", output)
+		t.Errorf("ERR level message should be logged when Level is WRN, got: %s", output)
 	}
 	buf.Reset()
 
@@ -231,16 +262,16 @@ func TestLogLevelFiltering(t *testing.T) {
 
 	output = buf.String()
 	if strings.Contains(output, "debug exclusive") {
-		t.Errorf("DEBUG level message should be filtered in exclusive mode, got: %s", output)
+		t.Errorf("DBG level message should be filtered in exclusive mode, got: %s", output)
 	}
 	if strings.Contains(output, "info exclusive") {
-		t.Errorf("INFO level message should be filtered in exclusive mode, got: %s", output)
+		t.Errorf("INF level message should be filtered in exclusive mode, got: %s", output)
 	}
 	if !strings.Contains(output, "warn exclusive") {
-		t.Errorf("WARN level message should be logged in exclusive mode, got: %s", output)
+		t.Errorf("WRN level message should be logged in exclusive mode, got: %s", output)
 	}
 	if strings.Contains(output, "error exclusive") {
-		t.Errorf("ERROR level message should be filtered in exclusive mode, got: %s", output)
+		t.Errorf("ERR level message should be filtered in exclusive mode, got: %s", output)
 	}
 	buf.Reset()
 
@@ -305,7 +336,7 @@ func TestErrorWrapping(t *testing.T) {
 	if wrappedStringErr.Error() != expectedString {
 		t.Errorf("Expected wrapped string error '%s', got '%s'", expectedString, wrappedStringErr.Error())
 	}
-	
+
 	// Test wrapping with other type (int)
 	intVal := 42
 	wrappedIntErr := logger.Wrap(intVal)
@@ -313,7 +344,7 @@ func TestErrorWrapping(t *testing.T) {
 	if wrappedIntErr.Error() != expectedIntString {
 		t.Errorf("Expected wrapped int error '%s', got '%s'", expectedIntString, wrappedIntErr.Error())
 	}
-	
+
 	// Test with LogWrappedErrors disabled
 	logger.LogWrappedErrors = false
 	logger.Wrap(originalErr) // Should not log the error
@@ -337,7 +368,7 @@ func TestColorControl(t *testing.T) {
 func TestFormatLabel(t *testing.T) {
 	// Test with colors disabled
 	labelStr := formatLabel(LogLevelDebug, true)
-	expected := "[DEBUG]"
+	expected := "[DBG]"
 	if labelStr != expected {
 		t.Errorf("Expected formatLabel with noColor=true to return %q, got %q", expected, labelStr)
 	}
@@ -440,13 +471,38 @@ func TestGlobalFunctions(t *testing.T) {
 	}
 	buf.Reset()
 
+	// Test the variadic global functions
+	Debug("Global debug message", errors.New("with debug error"))
+	if !strings.Contains(buf.String(), "Global debug message") || !strings.Contains(buf.String(), "with debug error") {
+		t.Errorf("Global Debug variadic function failed to log multiple arguments")
+	}
+	buf.Reset()
+
+	Info("Global info message", 42, "items")
+	if !strings.Contains(buf.String(), "Global info message") || !strings.Contains(buf.String(), "42") || !strings.Contains(buf.String(), "items") {
+		t.Errorf("Global Info variadic function failed to log multiple arguments")
+	}
+	buf.Reset()
+
+	Warn("Global warn message", errors.New("with warning details"))
+	if !strings.Contains(buf.String(), "Global warn message") || !strings.Contains(buf.String(), "with warning details") {
+		t.Errorf("Global Warn variadic function failed to log multiple arguments")
+	}
+	buf.Reset()
+
+	Error("Global error message", errors.New("with error details"))
+	if !strings.Contains(buf.String(), "Global error message") || !strings.Contains(buf.String(), "with error details") {
+		t.Errorf("Global Error variadic function failed to log multiple arguments")
+	}
+	buf.Reset()
+
 	// We can't test Fatal and Fatalf since they call os.Exit
 
 	// Test global context functions
 	// Test SetContext global function
 	SetContext("global context")
 	// The SetContext function updates the global logger internally
-	
+
 	// Test global Context() function
 	contextStr := Context()
 	if contextStr != "global context" {
@@ -461,7 +517,7 @@ func TestGlobalFunctions(t *testing.T) {
 
 	// Test global ClearContext function
 	ClearContext()
-	
+
 	// Verify context is cleared
 	contextStr = Context()
 	if contextStr != "" {
@@ -492,7 +548,7 @@ func TestFormatLogMessage(t *testing.T) {
 	// Test with empty context
 	logger.ClearContext()
 	message := logger.formatLogMessage(LogLevelInfo, "test message")
-	expected := "[INFO] | test message"
+	expected := "[INF] | test message"
 	if message != expected {
 		t.Errorf(
 			"Expected formatLogMessage with empty context to return %q, got %q",
@@ -504,7 +560,7 @@ func TestFormatLogMessage(t *testing.T) {
 	// Test with context
 	logger = logger.SetContext("test context")
 	message = logger.formatLogMessage(LogLevelInfo, "test message")
-	expected = "[INFO] test context | test message"
+	expected = "[INF] test context | test message"
 	if message != expected {
 		t.Errorf("Expected formatLogMessage with context to return %q, got %q", expected, message)
 	}
@@ -552,4 +608,3 @@ func TestMessageToString(t *testing.T) {
 		})
 	}
 }
-
