@@ -1,6 +1,7 @@
 package logerr
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -120,9 +121,20 @@ func (l *Logger) DisableColors() *Logger {
 }
 
 // Wrap wraps an error with the current context
-func (l Logger) Wrap(err error) error {
+// If a string is provided, it will be converted to an error
+func (l Logger) Wrap(val any) error {
+	var err error
+	switch v := val.(type) {
+	case error:
+		err = v
+	case string:
+		err = errors.New(v)
+	default:
+		err = fmt.Errorf("%v", v)
+	}
+	
 	if l.LogWrappedErrors {
-		l.Error(err.Error())
+		l.Error(err)
 	}
 	return fmt.Errorf("%s | %w", l.Context(), err)
 }
@@ -144,10 +156,24 @@ func (l *Logger) formatLogMessage(level LogLevel, msg string) string {
 	return fmt.Sprintf("%s %s | %s", prefix, ctx, msg)
 }
 
+// messageToString converts a message (string or error) to string
+func messageToString(message any) string {
+	switch msg := message.(type) {
+	case string:
+		return msg
+	case error:
+		return msg.Error()
+	default:
+		return fmt.Sprintf("%v", msg)
+	}
+}
+
 // log outputs a message if it should be logged based on level
-func (l *Logger) log(level LogLevel, msg string) {
+// message can be a string or an error
+func (l *Logger) log(level LogLevel, message any) {
 	if l.shouldLog(level) {
-		formatted := l.formatLogMessage(level, msg)
+		msgStr := messageToString(message)
+		formatted := l.formatLogMessage(level, msgStr)
 		fmt.Fprintln(l.Output, formatted)
 	}
 }
@@ -160,8 +186,9 @@ func (l *Logger) logf(level LogLevel, format string, args ...any) {
 }
 
 // Debug logs a message at DEBUG level
-func (l Logger) Debug(msg string) {
-	l.log(LogLevelDebug, msg)
+// message can be a string or an error
+func (l Logger) Debug(message any) {
+	l.log(LogLevelDebug, message)
 }
 
 // Debugf logs a formatted message at DEBUG level
@@ -170,8 +197,9 @@ func (l Logger) Debugf(format string, args ...any) {
 }
 
 // Info logs a message at INFO level
-func (l Logger) Info(msg string) {
-	l.log(LogLevelInfo, msg)
+// message can be a string or an error
+func (l Logger) Info(message any) {
+	l.log(LogLevelInfo, message)
 }
 
 // Infof logs a formatted message at INFO level
@@ -180,8 +208,9 @@ func (l Logger) Infof(format string, args ...any) {
 }
 
 // Warn logs a message at WARN level
-func (l Logger) Warn(msg string) {
-	l.log(LogLevelWarn, msg)
+// message can be a string or an error
+func (l Logger) Warn(message any) {
+	l.log(LogLevelWarn, message)
 }
 
 // Warnf logs a formatted message at WARN level
@@ -190,8 +219,9 @@ func (l Logger) Warnf(format string, args ...any) {
 }
 
 // Error logs a message at ERROR level
-func (l Logger) Error(msg string) {
-	l.log(LogLevelError, msg)
+// message can be a string or an error
+func (l Logger) Error(message any) {
+	l.log(LogLevelError, message)
 }
 
 // Errorf logs a formatted message at ERROR level
@@ -200,8 +230,9 @@ func (l Logger) Errorf(format string, args ...any) {
 }
 
 // Fatal logs a message at FATAL level and exits the program
-func (l Logger) Fatal(msg string) {
-	l.log(LogLevelFatal, msg)
+// message can be a string or an error
+func (l Logger) Fatal(message any) {
+	l.log(LogLevelFatal, message)
 	os.Exit(1)
 }
 
@@ -225,40 +256,45 @@ func formatLabel(level LogLevel, noColor bool) string {
 // Global convenience functions that use the default logger
 
 // Debug logs a message at DEBUG level using the global logger
-func Debug(s string) { G.Debug(s) }
+// message can be a string or an error
+func Debug(message any) { G.Debug(message) }
 
 // Debugf logs a formatted message at DEBUG level using the global logger
-func Debugf(s string, vals ...any) { G.Debugf(s, vals...) }
+func Debugf(format string, vals ...any) { G.Debugf(format, vals...) }
 
 // Info logs a message at INFO level using the global logger
-func Info(s string) { G.Info(s) }
+// message can be a string or an error
+func Info(message any) { G.Info(message) }
 
 // Infof logs a formatted message at INFO level using the global logger
-func Infof(s string, vals ...any) { G.Infof(s, vals...) }
+func Infof(format string, vals ...any) { G.Infof(format, vals...) }
 
 // Warn logs a message at WARN level using the global logger
-func Warn(s string) { G.Warn(s) }
+// message can be a string or an error
+func Warn(message any) { G.Warn(message) }
 
 // Warnf logs a formatted message at WARN level using the global logger
-func Warnf(s string, vals ...any) { G.Warnf(s, vals...) }
+func Warnf(format string, vals ...any) { G.Warnf(format, vals...) }
 
 // Error logs a message at ERROR level using the global logger
-func Error(s string) { G.Error(s) }
+// message can be a string or an error
+func Error(message any) { G.Error(message) }
 
 // Errorf logs a formatted message at ERROR level using the global logger
-func Errorf(s string, vals ...any) { G.Errorf(s, vals...) }
+func Errorf(format string, vals ...any) { G.Errorf(format, vals...) }
 
 // Fatal logs a message at FATAL level and exits the program using the global logger
-func Fatal(s string) { G.Fatal(s) }
+// message can be a string or an error
+func Fatal(message any) { G.Fatal(message) }
 
 // Fatalf logs a formatted message at FATAL level and exits the program using the global logger
-func Fatalf(s string, vals ...any) { G.Fatalf(s, vals...) }
+func Fatalf(format string, vals ...any) { G.Fatalf(format, vals...) }
 
 // Context returns the current context string from the global logger
 func Context() string { return G.Context() }
 
 // SetContext sets a single context value for the global logger
-func SetContext(context string) { G.SetContext(context) }
+func SetContext(context string) { G = G.SetContext(context) }
 
 // ClearContext removes all context from the global logger
 func ClearContext() { G.ClearContext() }
@@ -267,7 +303,8 @@ func ClearContext() { G.ClearContext() }
 func Add(context string) Logger { return G.Add(context) }
 
 // Wrap wraps an error with the current context from the global logger
-func Wrap(err error) error { return G.Wrap(err) }
+// If a string is provided, it will be converted to an error
+func Wrap(val any) error { return G.Wrap(val) }
 
 // EnableColors enables colored output for the global logger
 func EnableColors() { G.EnableColors() }
