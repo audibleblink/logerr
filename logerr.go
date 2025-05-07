@@ -147,6 +147,11 @@ func (l *Logger) DisableTimestamps() *Logger {
 	return l
 }
 
+// SetLogLevel sets the log level logger
+func (l *Logger) SetLogLevel(lvl LogLevel) *Logger {
+	l.Level = lvl
+	return l
+}
 // Wrap wraps an error with the current context
 // If a string is provided, it will be converted to an error
 func (l Logger) Wrap(val any) error {
@@ -368,3 +373,6 @@ func EnableTimestamps() { G = G.EnableTimestamps() }
 
 // DisableTimestamps disables timestamps in log messages for the global logger
 func DisableTimestamps() { G = G.DisableTimestamps() }
+
+// SetLogLevel sets the log level for the global logger
+func SetLogLevel() { G = G.SetLogLevel() }
