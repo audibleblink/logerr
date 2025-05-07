@@ -307,7 +307,7 @@ func formatLabel(level LogLevel, noColor bool) string {
 		return fmt.Sprintf("[%s] ", labelText)
 	}
 
-	return labelColors[level].Sprintf("[%s]", labelText)
+	return labelColors[level].Sprintf("[%s] ", labelText)
 }
 
 // Global convenience functions that use the default logger
