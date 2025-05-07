@@ -241,6 +241,60 @@ func TestErrorWrapping(t *testing.T) {
 	}
 }
 
+func TestWrapAny(t *testing.T) {
+	// Create a logger with context
+	logger := DefaultLogger().SetContext("test-context")
+	logger.LogWrappedErrors = true
+
+	// Test wrapping an error
+	originalErr := errors.New("original error")
+	wrappedErr := logger.WrapAny(originalErr)
+
+	// Check that the wrapped error contains the context
+	expected := fmt.Sprintf("test-context | %s", originalErr.Error())
+	if wrappedErr.Error() != expected {
+		t.Errorf("Expected wrapped error '%s', got '%s'", expected, wrappedErr.Error())
+	}
+
+	// Check that the original error is still accessible
+	if !errors.Is(wrappedErr, originalErr) {
+		t.Errorf("Expected wrapped error to contain original error")
+	}
+
+	// Test wrapping a string
+	errString := "error message"
+	stringWrappedErr := logger.WrapAny(errString)
+
+	// Check that the wrapped error contains the context and message
+	expected = fmt.Sprintf("test-context | %s", errString)
+	if stringWrappedErr.Error() != expected {
+		t.Errorf("Expected wrapped error '%s', got '%s'", expected, stringWrappedErr.Error())
+	}
+
+	// Test global WrapAny function
+	// Set global logger context
+	origG := G
+	defer func() {
+		G = origG
+	}()
+	
+	G = DefaultLogger().SetContext("global-context")
+	
+	// Test with error
+	globalWrappedErr := WrapAny(originalErr)
+	expected = fmt.Sprintf("global-context | %s", originalErr.Error())
+	if globalWrappedErr.Error() != expected {
+		t.Errorf("Expected globally wrapped error '%s', got '%s'", expected, globalWrappedErr.Error())
+	}
+	
+	// Test with string
+	globalStringWrappedErr := WrapAny(errString)
+	expected = fmt.Sprintf("global-context | %s", errString)
+	if globalStringWrappedErr.Error() != expected {
+		t.Errorf("Expected globally wrapped string '%s', got '%s'", expected, globalStringWrappedErr.Error())
+	}
+}
+
 func TestColorControl(t *testing.T) {
 	logger := DefaultLogger()
 

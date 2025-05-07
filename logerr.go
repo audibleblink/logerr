@@ -127,6 +127,26 @@ func (l Logger) Wrap(err error) error {
 	return fmt.Errorf("%s | %w", l.Context(), err)
 }
 
+// WrapAny wraps any value with the current context, converting it to an error
+// This is a generic function that supports both error types and string values
+func (l Logger) WrapAny[T error | string](val T) error {
+	switch v := any(val).(type) {
+	case error:
+		if l.LogWrappedErrors {
+			l.Error(v.Error())
+		}
+		return fmt.Errorf("%s | %w", l.Context(), v)
+	case string:
+		if l.LogWrappedErrors {
+			l.Error(v)
+		}
+		return fmt.Errorf("%s | %s", l.Context(), v)
+	default:
+		// This shouldn't be reached due to the type constraint, but is included for completeness
+		return fmt.Errorf("%s | %v", l.Context(), v)
+	}
+}
+
 // shouldLog determines if a message at the given level should be logged
 func (l *Logger) shouldLog(level LogLevel) bool {
 	return (l.Level == level && l.Exclusive) || (l.Level <= level && !l.Exclusive)
@@ -268,6 +288,9 @@ func Add(context string) Logger { return G.Add(context) }
 
 // Wrap wraps an error with the current context from the global logger
 func Wrap(err error) error { return G.Wrap(err) }
+
+// WrapAny wraps any string or error value with the current context from the global logger
+func WrapAny[T error | string](val T) error { return G.WrapAny(val) }
 
 // EnableColors enables colored output for the global logger
 func EnableColors() { G.EnableColors() }
