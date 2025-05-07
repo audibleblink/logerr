@@ -64,14 +64,19 @@ type Logger struct {
 
 	// NoColor disables colored output when true
 	NoColor bool
+
+	// ContextSeparator is used to join context elements
+	// Defaults to " | "
+	ContextSeparator string
 }
 
 // DefaultLogger creates a new logger with default settings
 func DefaultLogger() *Logger {
 	logger := &Logger{
-		Level:   LogLevelError,
-		Output:  os.Stderr,
-		NoColor: true,
+		Level:            LogLevelError,
+		Output:           os.Stderr,
+		NoColor:          true,
+		ContextSeparator: " | ",
 	}
 	color.NoColor = logger.NoColor
 	return logger.SetContext("")
@@ -84,7 +89,7 @@ func (l Logger) SetAsGlobal() {
 
 // Context returns the current context string
 func (l Logger) Context() string {
-	return strings.Join(l.context, " | ")
+	return strings.Join(l.context, l.ContextSeparator)
 }
 
 // ClearContext removes all context from the logger
@@ -120,6 +125,12 @@ func (l *Logger) DisableColors() *Logger {
 	return l
 }
 
+// SetContextSeparator sets the separator used for joining context elements
+func (l *Logger) SetContextSeparator(separator string) *Logger {
+	l.ContextSeparator = separator
+	return l
+}
+
 // Wrap wraps an error with the current context
 // If a string is provided, it will be converted to an error
 func (l Logger) Wrap(val any) error {
@@ -136,7 +147,8 @@ func (l Logger) Wrap(val any) error {
 	if l.LogWrappedErrors {
 		l.Error(err)
 	}
-	return fmt.Errorf("%s | %w", l.Context(), err)
+
+	return fmt.Errorf("%s%s%w", l.Context(), l.ContextSeparator, err)
 }
 
 // shouldLog determines if a message at the given level should be logged
@@ -150,10 +162,10 @@ func (l *Logger) formatLogMessage(level LogLevel, msg string) string {
 	ctx := l.Context()
 
 	if ctx == "" {
-		return fmt.Sprintf("%s | %s", prefix, msg)
+		return fmt.Sprintf("%s%s%s", timestamp, prefix, msg)
 	}
 
-	return fmt.Sprintf("%s %s | %s", prefix, ctx, msg)
+	return fmt.Sprintf("%s%s%s%s%s", timestamp, prefix, ctx, l.ContextSeparator, msg)
 }
 
 // messageToString converts a message (string or error) to string
@@ -265,7 +277,7 @@ func formatLabel(level LogLevel, noColor bool) string {
 	labelText := labels[level]
 
 	if noColor {
-		return fmt.Sprintf("[%s]", labelText)
+		return fmt.Sprintf("[%s] ", labelText)
 	}
 
 	return labelColors[level].Sprintf("[%s]", labelText)
@@ -326,3 +338,6 @@ func Wrap(val any) error { return G.Wrap(val) }
 
 // EnableColors enables colored output for the global logger
 func EnableColors() { G.EnableColors() }
+
+// SetContextSeparator sets the separator used for joining context elements for the global logger
+func SetContextSeparator(separator string) { G = G.SetContextSeparator(separator) }

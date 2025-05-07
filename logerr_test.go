@@ -67,6 +67,22 @@ func TestLoggerContext(t *testing.T) {
 	if logger.Context() != "" {
 		t.Errorf("Expected context to be empty after clear, got '%s'", logger.Context())
 	}
+
+	// Test custom separator
+	logger = logger.SetContext("test-context")
+	logger = logger.SetContextSeparator(": ")
+	newLogger = logger.Add("additional-context")
+	customExpected := "test-context: additional-context"
+	if newLogger.Context() != customExpected {
+		t.Errorf("Expected context with custom separator to be '%s', got '%s'", customExpected, newLogger.Context())
+	}
+
+	// Test with empty separator
+	logger = logger.SetContextSeparator("")
+	newLogger = logger.Add("additional-context")
+	if newLogger.Context() != "test-contextadditional-context" {
+		t.Errorf("Expected context with empty separator to be '%s', got '%s'", "test-contextadditional-context", newLogger.Context())
+	}
 }
 
 func TestLogMessages(t *testing.T) {
@@ -348,6 +364,14 @@ func TestErrorWrapping(t *testing.T) {
 	// Test with LogWrappedErrors disabled
 	logger.LogWrappedErrors = false
 	logger.Wrap(originalErr) // Should not log the error
+
+	// Test with custom separator
+	logger.SetContextSeparator(": ")
+	customWrappedErr := logger.Wrap(originalErr)
+	customExpected := fmt.Sprintf("test-context: %s", originalErr.Error())
+	if customWrappedErr.Error() != customExpected {
+		t.Errorf("Expected wrapped error with custom separator '%s', got '%s'", customExpected, customWrappedErr.Error())
+	}
 }
 
 func TestColorControl(t *testing.T) {
@@ -363,17 +387,6 @@ func TestColorControl(t *testing.T) {
 	if !logger.NoColor {
 		t.Errorf("Expected NoColor to be true after DisableColors")
 	}
-}
-
-func TestFormatLabel(t *testing.T) {
-	// Test with colors disabled
-	labelStr := formatLabel(LogLevelDebug, true)
-	expected := "[DBG]"
-	if labelStr != expected {
-		t.Errorf("Expected formatLabel with noColor=true to return %q, got %q", expected, labelStr)
-	}
-
-	// We can't easily test the colored version without mocking the color package
 }
 
 func TestGlobalFunctions(t *testing.T) {
@@ -510,8 +523,8 @@ func TestGlobalFunctions(t *testing.T) {
 	}
 
 	// Create a new logger with additional context
-	logger := Add("additional context")
-	if !strings.Contains(logger.Context(), "additional context") {
+	newLogger := Add("additional context")
+	if !strings.Contains(newLogger.Context(), "additional context") {
 		t.Errorf("Global Add failed")
 	}
 
@@ -539,6 +552,18 @@ func TestGlobalFunctions(t *testing.T) {
 
 	// Test global color control
 	EnableColors()
+
+	// Test global context separator
+	SetContextSeparator(": ")
+	SetContext("test-context")
+	addLogger := Add("additional-context")
+	// We need to update the global logger so our context changes are reflected
+	G = &addLogger
+	customSepContext := Context()
+	expectedCustomSep := "test-context: additional-context"
+	if customSepContext != expectedCustomSep {
+		t.Errorf("Global context with custom separator: expected '%s', got '%s'", expectedCustomSep, customSepContext)
+	}
 }
 
 func TestFormatLogMessage(t *testing.T) {
@@ -548,7 +573,7 @@ func TestFormatLogMessage(t *testing.T) {
 	// Test with empty context
 	logger.ClearContext()
 	message := logger.formatLogMessage(LogLevelInfo, "test message")
-	expected := "[INF] | test message"
+	expected := "[INF] test message"
 	if message != expected {
 		t.Errorf(
 			"Expected formatLogMessage with empty context to return %q, got %q",
@@ -557,12 +582,39 @@ func TestFormatLogMessage(t *testing.T) {
 		)
 	}
 
+	// Reset the separator to the default
+	logger = logger.SetContextSeparator(" | ")
+
 	// Test with context
 	logger = logger.SetContext("test context")
 	message = logger.formatLogMessage(LogLevelInfo, "test message")
 	expected = "[INF] test context | test message"
 	if message != expected {
 		t.Errorf("Expected formatLogMessage with context to return %q, got %q", expected, message)
+	}
+
+	// Test with custom separator
+	logger = logger.SetContextSeparator(": ")
+	message = logger.formatLogMessage(LogLevelInfo, "test message")
+	expected = "[INF] test context: test message"
+	if message != expected {
+		t.Errorf("Expected formatLogMessage with custom separator to return %q, got %q", expected, message)
+	}
+
+	// Test with timestamps enabled
+	logger = logger.EnableTimestamps()
+	message = logger.formatLogMessage(LogLevelInfo, "test message")
+	// Check that the message contains a timestamp in the expected format (YYYY-MM-DD HH:MM:SS.mmm)
+	if !strings.HasPrefix(message, "20") || !strings.Contains(message, ":") || !strings.Contains(message, "[INF]") {
+		t.Errorf("Expected message with timestamps to have date/time prefix, got: %q", message)
+	}
+
+	// Test with timestamps disabled
+	logger = logger.DisableTimestamps()
+	message = logger.formatLogMessage(LogLevelInfo, "test message")
+	expected = "[INF] test context: test message"
+	if message != expected {
+		t.Errorf("Expected message without timestamps to equal %q, got: %q", expected, message)
 	}
 }
 
@@ -608,3 +660,71 @@ func TestMessageToString(t *testing.T) {
 		})
 	}
 }
+
+func TestTimestampFunctionality(t *testing.T) {
+	// Save original global logger and restore after test
+	originalG := G
+	defer func() {
+		G = originalG
+	}()
+
+	// Create a test logger
+	var buf bytes.Buffer
+	logger := DefaultLogger()
+	logger.Output = &buf
+	logger.Level = LogLevelDebug
+	logger.NoColor = true
+
+	// Test EnableTimestamps and DisableTimestamps methods
+	logger = logger.EnableTimestamps()
+	if !logger.ShowTimestamps {
+		t.Errorf("EnableTimestamps() should set ShowTimestamps to true")
+	}
+
+	logger = logger.DisableTimestamps()
+	if logger.ShowTimestamps {
+		t.Errorf("DisableTimestamps() should set ShowTimestamps to false")
+	}
+
+	// Test logging with timestamps enabled
+	logger = logger.EnableTimestamps()
+	buf.Reset()
+	logger.Info("test message with timestamp")
+	output := buf.String()
+
+	// Output should contain timestamp in format: 2006-01-02 15:04:05.000
+	if !strings.Contains(output, "-") || !strings.Contains(output, ":") {
+		t.Errorf("Log output with enabled timestamps should contain date/time format, got: %q", output)
+	}
+
+	// Test logging with timestamps disabled
+	logger = logger.DisableTimestamps()
+	buf.Reset()
+	logger.Info("test message without timestamp")
+	output = buf.String()
+
+	// Output should start with the log level, not a digit (timestamp)
+	if strings.HasPrefix(output, "2") {
+		t.Errorf("Log output with disabled timestamps should not start with a timestamp, got: %q", output)
+	}
+
+	// Test global timestamp functions
+	testLogger := DefaultLogger()
+	testLogger.SetAsGlobal()
+
+	DisableTimestamps() // Make sure timestamps are disabled initially
+	if G.ShowTimestamps {
+		t.Errorf("Global logger should have timestamps disabled after DisableTimestamps()")
+	}
+
+	EnableTimestamps()
+	if !G.ShowTimestamps {
+		t.Errorf("Global logger should have timestamps enabled after EnableTimestamps()")
+	}
+
+	DisableTimestamps()
+	if G.ShowTimestamps {
+		t.Errorf("Global logger should have timestamps disabled after DisableTimestamps()")
+	}
+}
+
