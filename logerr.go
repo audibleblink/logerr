@@ -81,9 +81,10 @@ func DefaultLogger() *Logger {
 		Output:           os.Stderr,
 		NoColor:          true,
 		ContextSeparator: " | ",
+		context: make([]string, 0),
 	}
 	color.NoColor = logger.NoColor
-	return logger.SetContext("")
+	return logger
 }
 
 // SetAsGlobal sets this logger as the global default logger
