@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -64,6 +65,9 @@ type Logger struct {
 
 	// NoColor disables colored output when true
 	NoColor bool
+
+	// ShowTimestamps adds timestamps to log messages when true
+	ShowTimestamps bool
 
 	// ContextSeparator is used to join context elements
 	// Defaults to " | "
@@ -131,6 +135,18 @@ func (l *Logger) SetContextSeparator(separator string) *Logger {
 	return l
 }
 
+// EnableTimestamps enables timestamps in log messages
+func (l *Logger) EnableTimestamps() *Logger {
+	l.ShowTimestamps = true
+	return l
+}
+
+// DisableTimestamps disables timestamps in log messages
+func (l *Logger) DisableTimestamps() *Logger {
+	l.ShowTimestamps = false
+	return l
+}
+
 // Wrap wraps an error with the current context
 // If a string is provided, it will be converted to an error
 func (l Logger) Wrap(val any) error {
@@ -160,6 +176,11 @@ func (l *Logger) shouldLog(level LogLevel) bool {
 func (l *Logger) formatLogMessage(level LogLevel, msg string) string {
 	prefix := formatLabel(level, l.NoColor)
 	ctx := l.Context()
+
+	var timestamp string
+	if l.ShowTimestamps {
+		timestamp = time.Now().Format("2006-01-02 15:04:05.000 ")
+	}
 
 	if ctx == "" {
 		return fmt.Sprintf("%s%s%s", timestamp, prefix, msg)
@@ -341,3 +362,9 @@ func EnableColors() { G.EnableColors() }
 
 // SetContextSeparator sets the separator used for joining context elements for the global logger
 func SetContextSeparator(separator string) { G = G.SetContextSeparator(separator) }
+
+// EnableTimestamps enables timestamps in log messages for the global logger
+func EnableTimestamps() { G = G.EnableTimestamps() }
+
+// DisableTimestamps disables timestamps in log messages for the global logger
+func DisableTimestamps() { G = G.DisableTimestamps() }
